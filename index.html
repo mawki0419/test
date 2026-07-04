@@ -209,8 +209,8 @@ canvas{display:block}
 </div>
 <!-- ═══ LAYER NAV STRIP ═══ -->
 <div id="layernav">
-  <span class="ln-title">层级</span>
-  <div id="layer-strip"></div>
+  <button class="ln-btn" onclick="gotoLayer(0)" title="回到起点">◀ 起点</button>
+  <button class="ln-btn" onclick="prevLayer()" title="上一层">▲ 上层</button>
   <button class="ln-btn" onclick="nextLayer()" title="下一层">▼ 下层</button>
   <button class="ln-btn accent" onclick="finishMap()" title="完成地图">✓ 完成</button>
 </div>
@@ -370,6 +370,11 @@ function rndRect(ctx,x,y,w,h,r){
 // ══════════════════════════════════════════════════════════
 
 function ensureLayer(l){if(l>=numLayers){numLayers=l+1}}
+function prevLayer(){
+  if(currentLayer<=1)return;
+  currentLayer--;refreshAll();
+  wrap.scrollLeft=Math.max(0,GX+currentLayer*CX-80);
+}
 function nextLayer(){
   if(currentLayer>=MAX_LAYERS)return;
   currentLayer++;ensureLayer(currentLayer);dirty=true;refreshAll();
@@ -667,7 +672,7 @@ canvas.addEventListener('drop',e=>{
 // ══════════════════════════════════════════════════════════
 
 function refreshLayers(){
-  const cont=document.getElementById('layer-strip');
+  const cont=document.getElementById('layer-strip');if(!cont)return;
   const total=Math.max(numLayers,currentLayer+1);
   // Only rebuild if count changed
   var pills=cont.querySelectorAll('.ln-pill');
