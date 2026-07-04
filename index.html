@@ -474,20 +474,15 @@ function toggleOutgoing(l,r){
 }
 
 function handleDown(e){
-  if(e.type==='touchstart'&&e.touches.length>1)return;
-  e.preventDefault();
-  const{mx,my}=evtPos(e);
-  const n=nodeAt(mx,my);
-
-  // Long press → delete (mobile)
-  if(n&&n.type!=='start'&&n.type!=='boss'&&e.type==='touchstart'){
-    longPressTimer=setTimeout(()=>{removeNode(n.l,n.r);selectedNode=null;longPressTimer=null},500);
-  }
-
-  // (edge click removed - use click-click node connection instead)
+  // mouse-only handler - touch uses separate touch handlers
+  if(e.type==='touchstart')return;
+  if(e.button!==0)return;
+  // Right click handled by contextmenu
 }
 
 function handleUp(e){
+  // Skip if this was a touch event (handled by touchend + click)
+  if(e.type==='touchend')return;
   if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null}
 
   const{mx,my}=evtPos(e);
@@ -542,6 +537,42 @@ function handleMove(e){
 }
 
 canvas.addEventListener('mousedown',handleDown);
+canvas.addEventListener('click',function(e){
+  if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null}
+  const{mx,my}=evtPos(e);
+  const n=nodeAt(mx,my);
+  
+  // Click-click connection
+  if(selectedNode&&n){
+    if(selectedNode.l!==n.l){
+      var fl=Math.min(selectedNode.l,n.l),fr=(fl===selectedNode.l?selectedNode.r:n.r);
+      var tl=Math.max(selectedNode.l,n.l),tr=(tl===selectedNode.l?selectedNode.r:n.r);
+      var ek=fl+','+fr+','+tl+','+tr;
+      if(edges[ek]){delete edges[ek]}else{edges[ek]=true}
+      dirty=true;
+    }
+    selectedNode=null;refreshAll();return;
+  }
+  
+  // First click on node → select
+  if(n&&n.type!=='boss'&&!dragType&&!e.shiftKey){
+    selectedNode={l:n.l,r:n.r};refreshAll();return;
+  }
+  
+  // Click empty → deselect
+  if(!n&&!dragType){selectedNode=null;refreshAll();return}
+  
+  // Place node with dragType
+  if(n&&dragType&&n.type!=='start'&&n.type!=='boss'){selectedNode=null;addNode(n.l,n.r,dragType);return}
+  if(!n&&dragType&&currentLayer>0){
+    const l=Math.round((mx-GX-NW/2)/CX),r=Math.round((my-GY-NH/2)/RY);
+    if(l===currentLayer&&r>=0&&r<rows&&!nodes[l+','+r]){selectedNode=null;addNode(l,r,dragType)}
+    return;
+  }
+  // Shift+click batch toggle
+  if(n&&e.shiftKey){selectedNode=null;toggleOutgoing(n.l,n.r);refreshAll();return}
+});
+
 canvas.addEventListener('mousemove',handleMove);
 canvas.addEventListener('mouseup',handleUp);
 canvas.addEventListener('mouseleave',()=>{canvas.style.cursor='default';refreshAll()});
@@ -549,17 +580,17 @@ canvas.addEventListener('mouseleave',()=>{canvas.style.cursor='default';refreshA
 canvas.addEventListener('touchstart',function(e){if(e.target===canvas&&!nodeAt(evtPos(e))){/* allow scroll */}},{passive:true});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 
+// Touch: let browser handle scroll natively, use click for interaction
+canvas.style.touchAction='pan-x pan-y pinch-zoom';
 canvas.addEventListener('touchstart',function(e){
+  if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null}
   const n=nodeAt(evtPos(e));
-  // Only prevent scroll when interacting with a node or placing
-  if(dragType||(n&&n.type!=='boss')){e.preventDefault()}
-  handleDown(e);
-},{passive:false});
-canvas.addEventListener('touchmove',function(e){
-  // Allow native scroll unless drawing a connection
-  if(false){e.preventDefault()}
-  handleMove(e);
-},{passive:false});
+  if(n&&n.type!=='start'&&n.type!=='boss'){
+    longPressTimer=setTimeout(()=>{removeNode(n.l,n.r);selectedNode=null;longPressTimer=null},600);
+  }
+},{passive:true});
+canvas.addEventListener('touchmove',function(){if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null}},{passive:true});
+canvas.addEventListener('touchend',function(e){if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null}},{passive:true});
 canvas.addEventListener('touchend',handleUp);
 canvas.addEventListener('touchcancel',()=>{refreshAll();if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null}});
 
