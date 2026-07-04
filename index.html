@@ -226,8 +226,12 @@ canvas{display:block}
     <span>📊 路径分析</span><span id="ap-toggle">▼</span>
   </div>
   <div class="ap-body">
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+      <select id="metric-select" onchange="showSelectedMetric()" style="flex:1;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:6px 8px;font-size:12px">
+      </select>
+      <button class="btn analyze" onclick="runAnalysis()">运行</button>
+    </div>
     <div id="results"></div>
-    <button class="btn analyze" onclick="runAnalysis()">运行分析</button>
   </div>
 </div>
 
@@ -269,11 +273,14 @@ let dragType=null,drawing=false,srcNode=null,selectedNode=null;
 let longPressTimer=null;
 let isMobile=/Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
 
+let _prevW=0,_prevH=0;
 function resizeCanvas(){
-  canvas.width=GX*2+Math.max(numLayers,currentLayer+2)*CX+160;
-  canvas.height=GY*2+rows*RY+80;
-  canvas.style.width=canvas.width+'px';
-  canvas.style.height=canvas.height+'px';
+  var w=GX*2+Math.max(numLayers,currentLayer+2)*CX+160;
+  var h=GY*2+rows*RY+80;
+  if(w===_prevW&&h===_prevH)return;
+  _prevW=w;_prevH=h;
+  canvas.width=w;canvas.height=h;
+  canvas.style.width=w+'px';canvas.style.height=h+'px';
 }
 function cellCenter(l,r){return{x:GX+l*CX+NW/2,y:GY+r*RY+NH/2}}
 function cellRect(l,r){return{x:GX+l*CX,y:GY+r*RY,w:NW,h:NH}}
@@ -660,27 +667,38 @@ canvas.addEventListener('drop',e=>{
 // ══════════════════════════════════════════════════════════
 
 function refreshLayers(){
-  const cont=document.getElementById('layer-strip');cont.innerHTML='';
+  const cont=document.getElementById('layer-strip');
   const total=Math.max(numLayers,currentLayer+1);
-  for(let l=0;l<=total;l++){
-    const pill=document.createElement('span');pill.className='ln-pill';
-    if(l===0){pill.textContent='L0 起点';pill.className+=' start'}
-    else if(l===total&&currentLayer<0){pill.textContent='Boss';pill.className+=' done'}
-    else if(l===currentLayer){pill.textContent='● L'+l;pill.className+=' current'}
-    else if(l<currentLayer||(currentLayer<0&&l<total)){pill.textContent='L'+l+' ✓';pill.className+=' done'}
-    else{pill.textContent='L'+l;pill.className+=' pending'}
-    pill.onclick=()=>gotoLayer(l);
-    cont.appendChild(pill);
+  // Only rebuild if count changed
+  var pills=cont.querySelectorAll('.ln-pill');
+  if(pills.length!==total+1){
+    cont.innerHTML='';
+    for(let l=0;l<=total;l++){
+      const pill=document.createElement('span');pill.className='ln-pill';
+      pill.onclick=function(){gotoLayer(l)};
+      cont.appendChild(pill);
+    }
+    pills=cont.querySelectorAll('.ln-pill');
   }
-  // Scroll to current pill
-  if(currentLayer>=0){
-    const pills=cont.querySelectorAll('.ln-pill');
-    if(pills[currentLayer])pills[currentLayer].scrollIntoView({block:'nearest',inline:'center'});
+  // Update text and classes only
+  for(let l=0;l<=total;l++){
+    const pill=pills[l];
+    pill.className='ln-pill';
+    if(l===0){pill.textContent='L0 起点';pill.classList.add('start')}
+    else if(l===total&&currentLayer<0){pill.textContent='Boss';pill.classList.add('done')}
+    else if(l===currentLayer){pill.textContent='● L'+l;pill.classList.add('current')}
+    else if(l<currentLayer||(currentLayer<0&&l<total)){pill.textContent='L'+l+' ✓';pill.classList.add('done')}
+    else{pill.textContent='L'+l;pill.classList.add('pending')}
   }
 }
 
-function refreshAll(){
-  resizeCanvas();draw();refreshLayers();
+let _lastResizeState='';
+function refreshAll(full){
+  if(full||_lastResizeState!==''+numLayers+','+currentLayer+','+rows){
+    _lastResizeState=''+numLayers+','+currentLayer+','+rows;
+    resizeCanvas();
+  }
+  draw();refreshLayers();
   document.getElementById('mapTitle').textContent=(window._filePath?window._filePath.split(/[\\/]/).pop():'未保存')+(dirty?' ●':'');
 }
 
@@ -755,6 +773,7 @@ function loadJSON(data){
 // DP Analysis
 // ══════════════════════════════════════════════════════════
 
+let _dpResults=[];
 function runAnalysis(){
   const data=exportJSON(),layers=data.layers.map(ld=>ld.sort((a,b)=>(a._row||a.id)-(b._row||b.id)).map(n=>({type:n.type,nextRaw:n.next})));
   for(let li=0;li<layers.length;li++)for(let ni=0;ni<layers[li].length;ni++){
@@ -767,33 +786,50 @@ function runAnalysis(){
     for(let li=1;li<layers.length;li++)for(let ni=0;ni<layers[li].length;ni++){
       const cur=cf(layers[li][ni].type);let bv=null,bp=null;
       for(let pl=0;pl<li;pl++)for(let pj=0;pj<layers[pl].length;pj++){
-        if(layers[pl][pj].next.some(n=>n[0]===li&&n[1]===ni)&&tbl[`${pl},${pj}`]){
-          const c=tbl[`${pl},${pj}`][0]+cur;
+        if(layers[pl][pj].next.some(n=>n[0]===li&&n[1]===ni)&&tbl[pl+','+pj]){
+          const c=tbl[pl+','+pj][0]+cur;
           if(bv===null||(mx?c>bv:c<bv)){bv=c;bp=[pl,pj]}
         }
       }
-      if(bv!==null)tbl[`${li},${ni}`]=[bv,bp]
+      if(bv!==null)tbl[li+','+ni]=[bv,bp]
     }
     return tbl
   }
-  function pth(tbl,end){const p=[end];let cur=tbl[`${end[0]},${end[1]}`];while(cur&&cur[1]){p.push(cur[1]);cur=tbl[`${cur[1][0]},${cur[1][1]}`]}p.reverse();return p}
-  function fmt(p){return p.map(([li,ni])=>`L${li}[${ni}]${rev[layers[li][ni].type]||layers[li][ni].type}`).join(' → ')}
+  function pth(tbl,end){const p=[end];let cur=tbl[end[0]+','+end[1]];while(cur&&cur[1]){p.push(cur[1]);cur=tbl[cur[1][0]+','+cur[1][1]]}p.reverse();return p}
+  function fmt(p){return p.map(([li,ni])=>'L'+li+'['+ni+']'+(rev[layers[li][ni].type]||layers[li][ni].type)).join(' → ')}
 
-  const specs=[['最多节点数',t=>1,true],['最少节点数',t=>1,false],['最少高难',t=>t==='hard'?1:0,false],['最多高难',t=>t==='hard'?1:0,true],['最多休息商店',t=>t==='rest_shop'?1:0,true],['最少战斗',t=>t.includes('battle')?1:0,false],['最多战斗',t=>t.includes('battle')?1:0,true],['最多随机',t=>t==='random'?1:0,true],['最少随机',t=>t==='random'?1:0,false]];
-  const div=document.getElementById('results');div.innerHTML='';
-  const endKey=`${END[0]},${END[1]}`;
+  const specs=[['最多节点数',t=>1,true],['最少节点数',t=>1,false],['最少高难',t=>t==='hard'?1:0,false],['最多高难',t=>t==='hard'?1:0,true],['最多休息商店',t=>t==='rest_shop'?1:0,true],['最少战斗(含面具)',t=>t.includes('battle')?1:0,false],['最多战斗(含面具)',t=>t.includes('battle')?1:0,true],['最多战斗面具',t=>t==='battle_mask'?1:0,true],['最少战斗面具',t=>t==='battle_mask'?1:0,false],['最多随机',t=>t==='random'?1:0,true],['最少随机',t=>t==='random'?1:0,false]];
+  const endKey=END[0]+','+END[1];
+  _dpResults=[];
 
+  // Populate selector
+  var sel=document.getElementById('metric-select');
+  sel.innerHTML='';
   for(const[name,cf,mx]of specs){
     const tbl=dp(cf,mx);
-    if(!tbl[endKey]){div.innerHTML+=`<div class="result-item"><span class="rn">${name}</span>: 不可达</div>`;continue}
-    const val=tbl[endKey][0],p=pth(tbl,END),stats={};
-    for(const[li,ni]of p){const t=layers[li][ni].type;stats[rev[t]||t]=(stats[rev[t]||t]||0)+1}
-    const ss=Object.entries(stats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}:${v}`).join(' | ');
-    div.innerHTML+=`<div class="result-item"><span class="rn">${name}</span> <span class="rv">${val}</span><div class="rp">${fmt(p)}</div><div class="rs">${ss}</div></div>`;
+    if(!tbl[endKey]){_dpResults.push({name,val:'不可达',path:'',stats:{}});}
+    else{
+      const val=tbl[endKey][0],p=pth(tbl,END),stats={};
+      for(const[li,ni]of p){const t=layers[li][ni].type;stats[rev[t]||t]=(stats[rev[t]||t]||0)+1}
+      _dpResults.push({name,val,path:fmt(p),stats});
+    }
+    var opt=document.createElement('option');
+    opt.value=sel.children.length;opt.textContent=name;sel.appendChild(opt);
   }
-  // Expand analysis panel to show results
-  var ap=document.getElementById('analysis-panel');
-  if(ap)ap.classList.add('open');
+  showSelectedMetric();
+  var ap=document.getElementById('analysis-panel');if(ap)ap.classList.add('open');
+}
+
+function showSelectedMetric(){
+  var sel=document.getElementById('metric-select');
+  var idx=sel.selectedIndex;
+  if(idx<0||idx>=_dpResults.length)return;
+  var r=_dpResults[idx];
+  var div=document.getElementById('results');
+  var ss=Object.entries(r.stats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+':'+v).join(' | ');
+  div.innerHTML='<div class="result-item">'+
+    '<span class="rn">'+r.name+'</span> <span class="rv">'+r.val+'</span>'+
+    '<div class="rp">'+r.path+'</div><div class="rs">'+ss+'</div></div>';
 }
 
 // ══════════════════════════════════════════════════════════
