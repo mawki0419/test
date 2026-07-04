@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=0.5,maximum-scale=3,user-scalable=yes,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="卡厄斯梦境">
@@ -111,7 +111,7 @@ body{
 }
 
 /* ═══ CANVAS ═══ */
-#canvas-wrap{flex:1;min-height:0;overflow-x:auto;overflow-y:hidden;position:relative;background:var(--bg);-webkit-overflow-scrolling:touch}
+#canvas-wrap{flex:1;min-height:0;overflow-x:auto;overflow-y:hidden;position:relative;background:var(--bg);-webkit-overflow-scrolling:touch;touch-action:pan-x}
 canvas{display:block}
 
 /* ═══ ANALYSIS PANEL (below canvas) ═══ */
@@ -170,8 +170,8 @@ canvas{display:block}
   .result-item .rp{font-size:11px}
   .result-item .rs{font-size:10px}
   
-  #canvas-wrap{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
-  canvas{touch-action:manipulation}
+  #canvas-wrap{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x}
+  canvas{touch-action:pan-x pan-y pinch-zoom}
 }
 @media(max-width:480px){
   #topbar .title{max-width:60px;font-size:11px}
