@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=0.5,maximum-scale=3,user-scalable=yes,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="卡厄斯梦境">
@@ -171,7 +171,7 @@ canvas{display:block}
   .result-item .rs{font-size:10px}
   
   #canvas-wrap{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x}
-  canvas{touch-action:pan-x pan-y pinch-zoom}
+  canvas{touch-action:pan-x pan-y}
 }
 @media(max-width:480px){
   #topbar .title{max-width:60px;font-size:11px}
@@ -537,12 +537,16 @@ function handleMove(e){
 }
 
 canvas.addEventListener('mousedown',handleDown);
+// Click handler defined below
+
+canvas.addEventListener('mousemove',handleMove);
+// Unified click handler (desktop + mobile)
 canvas.addEventListener('click',function(e){
   if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null}
   const{mx,my}=evtPos(e);
   const n=nodeAt(mx,my);
-  
-  // Click-click connection
+
+  // Click-click connection: selected node → click another node
   if(selectedNode&&n){
     if(selectedNode.l!==n.l){
       var fl=Math.min(selectedNode.l,n.l),fr=(fl===selectedNode.l?selectedNode.r:n.r);
@@ -553,35 +557,42 @@ canvas.addEventListener('click',function(e){
     }
     selectedNode=null;refreshAll();return;
   }
-  
-  // First click on node → select
+
+  // Click a node → select it (gold highlight)
   if(n&&n.type!=='boss'&&!dragType&&!e.shiftKey){
     selectedNode={l:n.l,r:n.r};refreshAll();return;
   }
-  
+
   // Click empty → deselect
   if(!n&&!dragType){selectedNode=null;refreshAll();return}
-  
-  // Place node with dragType
+
+  // With dragType selected: click node → replace, click empty → place
   if(n&&dragType&&n.type!=='start'&&n.type!=='boss'){selectedNode=null;addNode(n.l,n.r,dragType);return}
   if(!n&&dragType&&currentLayer>0){
-    const l=Math.round((mx-GX-NW/2)/CX),r=Math.round((my-GY-NH/2)/RY);
-    if(l===currentLayer&&r>=0&&r<rows&&!nodes[l+','+r]){selectedNode=null;addNode(l,r,dragType)}
+    var cl=Math.round((mx-GX-NW/2)/CX),cr=Math.round((my-GY-NH/2)/RY);
+    if(cl===currentLayer&&cr>=0&&cr<rows&&!nodes[cl+','+cr]){selectedNode=null;addNode(cl,cr,dragType)}
     return;
   }
-  // Shift+click batch toggle
+
+  // Shift+click on node → batch toggle edges
   if(n&&e.shiftKey){selectedNode=null;toggleOutgoing(n.l,n.r);refreshAll();return}
 });
 
-canvas.addEventListener('mousemove',handleMove);
-canvas.addEventListener('mouseup',handleUp);
-canvas.addEventListener('mouseleave',()=>{canvas.style.cursor='default';refreshAll()});
+// Right-click delete (desktop)
+canvas.addEventListener('contextmenu',function(e){
+  e.preventDefault();
+  const{mx,my}=evtPos(e);
+  const n=nodeAt(mx,my);
+  if(n&&n.type!=='start'&&n.type!=='boss'){selectedNode=null;removeNode(n.l,n.r)}
+});
+
+canvas.addEventListener('mouseleave',()=>{canvas.style.cursor='default'});
 // Prevent canvas from eating scroll events on mobile
 canvas.addEventListener('touchstart',function(e){if(e.target===canvas&&!nodeAt(evtPos(e))){/* allow scroll */}},{passive:true});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 
 // Touch: let browser handle scroll natively, use click for interaction
-canvas.style.touchAction='pan-x pan-y pinch-zoom';
+canvas.style.touchAction='pan-x pan-y';
 canvas.addEventListener('touchstart',function(e){
   if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null}
   const n=nodeAt(evtPos(e));
