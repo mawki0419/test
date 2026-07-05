@@ -150,7 +150,7 @@ canvas{display:block;margin:0 auto}
   <div id="canvas-wrap"><canvas id="canvas"></canvas></div>
   <div id="analysis-panel">
     <div class="ap-header">
-      <span>📊 路径分析</span>
+      <span>📊路径分析</span>
       <button onclick="switchTab('canvas')" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:4px 12px;font-size:12px;cursor:pointer">← 画布</button>
     </div>
     <div class="ap-body">
@@ -167,13 +167,13 @@ canvas{display:block;margin:0 auto}
     <button onclick="prevLayer()" title="上一层">◀ 上层</button>
     <span class="layer-info" id="layerInfo">1/1</span>
     <button onclick="nextLayer()" title="下一层">下层 ▶</button>
-    <button class="danger" onclick="deleteLayer()" title="删除当前层">🗑 删除</button>
+    <button class="danger" onclick="deleteLayer()" title="删除当前层">🗑删除</button>
     <button class="accent" onclick="finishMap()" title="完成地图">✓ 完成</button>
-    <button class="analyze-btn" onclick="runAnalysis()" title="路径分析">📊 分析</button>
+    <button class="analyze-btn" onclick="runAnalysis()" title="路径分析">📊分析</button>
   </div>
   <div id="palette-bar"></div>
   <div id="tab-bar">
-    <button class="tab active" onclick="switchTab('canvas')">📐 画布</button>
+    <button class="tab active" onclick="switchTab('canvas')">📐画布</button>
     <button class="tab" onclick="switchTab('analysis')">📊 路径分析</button>
   </div>
 </div>
@@ -298,10 +298,9 @@ function draw(){
 function drawEdge(fl,fr,tl,tr,mode){
   const from=cellCenter(fl,fr),to=cellCenter(tl,tr);
   const sx=from.x,sy=from.y+NH/2,ex=to.x,ey=to.y-NH/2;
-  ctx.beginPath();const mid=(sx+ex)/2;
+  ctx.beginPath();
   ctx.moveTo(sx,sy);
-  ctx.quadraticCurveTo(mid,sy,mid,(sy+ey)/2);
-  ctx.quadraticCurveTo(mid,ey,ex,ey);
+  ctx.lineTo(ex,ey);
   if(mode==='path'){ctx.strokeStyle='#22c55e';ctx.lineWidth=3;ctx.shadowColor='#22c55e66';ctx.shadowBlur=8}
   else if(mode==='on'){ctx.strokeStyle='#facc15';ctx.lineWidth=2.5;ctx.shadowColor='#facc1566';ctx.shadowBlur=6}
   else{ctx.strokeStyle='#2a2a2e';ctx.lineWidth=1;ctx.setLineDash([5,5]);ctx.shadowColor='transparent';ctx.shadowBlur=0}
@@ -338,7 +337,6 @@ function removeNode(l,r){
 }
 
 function ensureLayer(l){if(l>=numLayers)numLayers=l+1}
-
 function prevLayer(){if(currentLayer<=1)return;currentLayer--;refreshAll(true);scrollToLayer(currentLayer)}
 function nextLayer(){if(currentLayer>=MAX_LAYERS)return;currentLayer++;ensureLayer(currentLayer);dirty=true;refreshAll(true);scrollToLayer(currentLayer)}
 
@@ -407,7 +405,6 @@ function toggleOutgoing(l,r){
 }
 
 let paletteBtns=[];
-
 function buildPalette(){
   var bar=document.getElementById('palette-bar');bar.innerHTML='';paletteBtns=[];
   for(var i=0;i<PALETTE.length;i++){
